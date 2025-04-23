@@ -1,14 +1,16 @@
 // Import necessary libraries
-import React, { useState } from "react";
+import React, { useRef, useState } from "react";
 import { InputText } from "primereact/inputtext";
 import { Button } from "primereact/button";
 import { DataTable } from "primereact/datatable";
 import { Column } from "primereact/column";
 import { extract, login } from "./services/apicall";
 import { classNames } from "primereact/utils";
-import { debounced, isValidUrl } from "./utils/commonFunction";
+import { isValidUrl } from "./utils/commonFunction";
 import { Password } from "primereact/password";
+import { Toast } from "primereact/toast";
 
+let timeoutId;
 export default function AIPoweredExtractor() {
   const [username, setUsername] = useState("admin");
   const [password, setPassword] = useState("admin");
@@ -18,8 +20,18 @@ export default function AIPoweredExtractor() {
   const [data, setData] = useState([]);
   const [globalFilter, setGlobalFilter] = useState(null);
 
+  const toast = useRef(null);
+
   const showClear = url && !isValidUrl(url);
   const showSubmit = isValidUrl(url);
+
+  const show = (content) => {
+    toast.current.show({
+      severity: "error",
+      summary: "Error",
+      detail: content || "Something went wrong.",
+    });
+  };
 
   const handleLogin = async () => {
     if (!password && !username) return;
@@ -29,7 +41,16 @@ export default function AIPoweredExtractor() {
       setAuthIn(true);
     } catch (err) {
       console.error("Login failed", err);
+      show(err.message);
     }
+  };
+
+  const debounced = (e) => {
+    const value = e.target.value.trim();
+    clearTimeout(timeoutId);
+    timeoutId = setTimeout(() => {
+      handleExtract(value);
+    }, 500);
   };
 
   const handleExtract = async (values) => {
@@ -41,6 +62,7 @@ export default function AIPoweredExtractor() {
       setData(response.data.result || []);
     } catch (err) {
       console.error("Extraction failed", err);
+      show(err.message);
     } finally {
       setLoading(false);
     }
@@ -48,6 +70,7 @@ export default function AIPoweredExtractor() {
 
   return (
     <>
+      <Toast ref={toast} />
       {!authIn ? (
         <div className="flex flex-column align-items-center justify-content-center">
           <div
@@ -125,7 +148,7 @@ export default function AIPoweredExtractor() {
                   <InputText
                     style={{ minWidth: "321px" }}
                     type="search"
-                    onInput={(e) => debounced(handleExtract(e.target.value))}
+                    onInput={debounced}
                     placeholder="New Points search in same website"
                   />
                 </span>
